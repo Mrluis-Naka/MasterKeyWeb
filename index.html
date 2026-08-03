@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MasterKey — a from-scratch CUDA engine for secp256k1 key-space search</title>
+<meta name="description" content="MasterKey is a Bitcoin key-space search engine written from scratch in CUDA: ~4.32 G candidates/s on an RTX 4090, ~2.46 G/s on a 4070 Ti SUPER, measured across four GPUs and three architectures — every mathematical layer validated bit-exact against independent cryptographic oracles.">
+<link rel="canonical" href="https://masterkeybtc.com/">
+<meta name="author" content="Mr.Luis">
+<meta name="robots" content="index, follow">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://masterkeybtc.com/">
+<meta property="og:title" content="MasterKey — a from-scratch CUDA engine for secp256k1 key-space search">
+<meta property="og:description" content="~4.32 G candidates/s on an RTX 4090, ~2.46 G/s on a 4070 Ti SUPER, ~255 M/s on a Titan Xp — four GPUs, three architectures, all measured. ~320× over the first correct version, and every mathematical layer validated bit-exact before a single optimization was accepted.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#0a0d12">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230a0d12'/%3E%3Ctext x='16' y='22' font-family='monospace' font-size='14' font-weight='bold' fill='%23f7931a' text-anchor='middle'%3EMK%3C/text%3E%3C/svg%3E">
+
+<style>
+:root{
+  --bg:#080b10;
+  --bg-2:#0d1117;
+  --panel:#11161e;
+  --panel-2:#161c26;
+  --line:#1e2630;
+  --line-2:#2a3441;
+  --fg:#d5dde6;
+  --fg-dim:#94a1b0;
+  --fg-faint:#68758a;
+  --accent:#f7931a;
+  --accent-dim:#b96f14;
+  --ok:#3fb950;
+  --info:#58a6ff;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono","JetBrains Mono","Cascadia Mono",Menlo,Consolas,"Liberation Mono",monospace;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,"Helvetica Neue",Arial,sans-serif;
+  --maxw:1080px;
+}
+
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--fg);
+  font-family:var(--sans);
+  font-size:16px;
+  line-height:1.65;
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+}
+body::before{
+  content:"";
+  position:fixed;
+  inset:0;
+  pointer-events:none;
+  z-index:0;
+  background-image:linear-gradient(rgba(255,255,255,.014) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.014) 1px,transparent 1px);
+  background-size:56px 56px;
+  mask-image:radial-gradient(ellipse 90% 60% at 50% 0%,#000 40%,transparent 100%);
+  -webkit-mask-image:radial-gradient(ellipse 90% 60% at 50% 0%,#000 40%,transparent 100%);
+}
+main,header,footer,nav{position:relative;z-index:1}
+
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+code,kbd,pre,.mono{font-family:var(--mono)}
+
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px}
+
+/* ---------- top nav ---------- */
+.nav{
+  position:sticky;top:0;z-index:50;
+  background:rgba(8,11,16,.85);
+  backdrop-filter:blur(12px);
+  -webkit-backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--line);
+}
+.nav-inner{display:flex;align-items:center;gap:24px;height:56px;max-width:var(--maxw);margin:0 auto;padding:0 24px}
+.brand{font-family:var(--mono);font-size:15px;font-weight:700;letter-spacing:.02em;color:var(--fg);white-space:nowrap}
+.brand .cursor{color:var(--accent)}
+.nav-links{display:flex;gap:22px;margin-left:auto;overflow-x:auto;scrollbar-width:none}
+.nav-links::-webkit-scrollbar{display:none}
+.nav-links a{
+  font-family:var(--mono);font-size:12.5px;letter-spacing:.04em;
+  color:var(--fg-dim);text-transform:lowercase;white-space:nowrap;
+  padding:4px 0;border-bottom:1px solid transparent;
+}
+.nav-links a:hover{color:var(--accent);text-decoration:none;border-bottom-color:var(--accent)}
+
+/* ---------- hero ---------- */
+.hero{padding:88px 0 64px;border-bottom:1px solid var(--line)}
+.eyebrow{
+  font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--accent);margin:0 0 20px;
+}
+h1{
+  font-family:var(--mono);
+  font-size:clamp(30px,5.2vw,52px);
+  line-height:1.12;letter-spacing:-.02em;font-weight:700;
+  margin:0 0 22px;color:#eef3f8;
+}
+h1 .hl{color:var(--accent)}
+.lede{font-size:clamp(16px,2.2vw,19px);color:var(--fg-dim);max-width:70ch;margin:0 0 34px}
+.lede strong{color:var(--fg);font-weight:600}
+.byline{
+  font-family:var(--mono);font-size:13px;color:var(--fg-faint);
+  margin:0 0 30px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+}
+.byline::before{content:"";height:1px;width:34px;background:var(--accent);flex:none}
+.byline strong{color:var(--accent);font-weight:700;letter-spacing:.01em}
+
+/* terminal block */
+.term{
+  background:var(--bg-2);
+  border:1px solid var(--line-2);
+  border-radius:8px;
+  overflow:hidden;
+  box-shadow:0 18px 44px rgba(0,0,0,.45);
+}
+.term-bar{
+  display:flex;align-items:center;gap:8px;
+  padding:9px 14px;background:var(--panel-2);border-bottom:1px solid var(--line-2);
+}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--line-2);flex:none}
+.dot.r{background:#c0392b55}.dot.y{background:#d3922255}.dot.g{background:#2c8a4055}
+.term-title{font-family:var(--mono);font-size:11.5px;color:var(--fg-faint);margin-left:6px;letter-spacing:.03em}
+.term-body{padding:16px 18px;overflow-x:auto}
+.term-body pre{margin:0;font-size:12.8px;line-height:1.85;white-space:pre;color:var(--fg-dim)}
+.term-body .p{color:var(--ok)}
+.term-body .c{color:#eef3f8}
+.term-body .f{color:var(--accent)}
+.term-body .o{color:var(--info)}
+.term-body .cm{color:var(--fg-faint)}
+
+/* ---------- metric strip ---------- */
+.metrics{
+  display:grid;grid-template-columns:repeat(4,1fr);
+  border-top:1px solid var(--line);border-bottom:1px solid var(--line);
+  background:linear-gradient(180deg,var(--panel) 0%,var(--bg) 100%);
+}
+.metric{padding:26px 24px;border-right:1px solid var(--line)}
+.metric:last-child{border-right:0}
+.metric .v{font-family:var(--mono);font-size:clamp(22px,3.4vw,31px);font-weight:700;color:var(--accent);line-height:1.1;letter-spacing:-.01em}
+.metric .v small{font-size:.52em;font-weight:600;color:var(--accent-dim);letter-spacing:0}
+.metric .k{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--fg-faint);margin-top:9px}
+
+/* ---------- sections ---------- */
+section{padding:76px 0;border-bottom:1px solid var(--line)}
+.sec-tag{font-family:var(--mono);font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--fg-faint);margin:0 0 12px}
+.sec-tag::before{content:"// ";color:var(--accent)}
+h2{font-family:var(--mono);font-size:clamp(23px,3.4vw,31px);font-weight:700;letter-spacing:-.015em;margin:0 0 16px;color:#eef3f8}
+h3{font-family:var(--mono);font-size:16.5px;font-weight:700;margin:36px 0 12px;color:var(--fg)}
+p{margin:0 0 18px;max-width:78ch}
+.muted{color:var(--fg-dim)}
+.small{font-size:14px}
+.tiny{font-size:12.8px;color:var(--fg-faint);line-height:1.7}
+
+/* cards */
+.grid{display:grid;gap:16px}
+.g2{grid-template-columns:repeat(2,1fr)}
+.g3{grid-template-columns:repeat(3,1fr)}
+.card{
+  background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:22px;
+}
+.card h4{font-family:var(--mono);font-size:14.5px;margin:0 0 10px;color:var(--fg);letter-spacing:.01em}
+.card h4 .n{color:var(--accent);margin-right:8px}
+.card p{margin:0;font-size:14.5px;color:var(--fg-dim);max-width:none}
+
+/* pipeline */
+.pipe{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:26px 22px;font-family:var(--mono)}
+.pipe-row{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+.pipe-node{font-size:14px;color:#eef3f8;font-weight:600}
+.pipe-note{font-size:12.5px;color:var(--fg-faint)}
+.pipe-arrow{color:var(--accent);font-size:13px;padding:7px 0 7px 5px;line-height:1.2}
+.pipe-arrow span{color:var(--fg-dim);margin-left:12px;font-size:12.5px}
+
+/* tables */
+.tw{overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--line);border-radius:8px;background:var(--panel)}
+table{border-collapse:collapse;width:100%;min-width:560px;font-size:14px}
+table.wide{min-width:780px}
+th,td{text-align:left;padding:12px 16px;border-bottom:1px solid var(--line);vertical-align:top}
+thead th{
+  font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--fg-faint);background:var(--panel-2);font-weight:600;white-space:nowrap;
+}
+tbody tr:last-child td{border-bottom:0}
+tbody tr:hover{background:rgba(255,255,255,.018)}
+td.num,th.num{font-family:var(--mono);text-align:right;white-space:nowrap}
+td.mono{font-family:var(--mono);font-size:13px}
+.ok{color:var(--ok);font-family:var(--mono);font-size:13px;white-space:nowrap}
+.gain{color:var(--accent);font-family:var(--mono);font-weight:600}
+.neg{color:#c96a5e;font-family:var(--mono)}
+
+/* bar cell */
+.bar{position:relative;height:7px;border-radius:4px;background:var(--line);overflow:hidden;min-width:70px}
+.bar i{position:absolute;inset:0 auto 0 0;background:linear-gradient(90deg,var(--accent-dim),var(--accent));border-radius:4px;display:block}
+
+/* chart */
+.chart{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:24px 22px}
+.chart-row{display:grid;grid-template-columns:minmax(150px,1.1fr) 3fr minmax(96px,auto);gap:14px;align-items:center;padding:9px 0}
+.chart-label{font-family:var(--mono);font-size:12.5px;color:var(--fg-dim);line-height:1.4}
+.chart-track{height:20px;background:var(--bg-2);border:1px solid var(--line);border-radius:4px;position:relative;overflow:hidden}
+.chart-fill{position:absolute;top:0;bottom:0;left:0;background:linear-gradient(90deg,#7a4a0d,var(--accent));border-radius:3px 0 0 3px;min-width:2px}
+.chart-fill.dim{background:linear-gradient(90deg,#2b3a4b,#41566d)}
+.chart-val{font-family:var(--mono);font-size:13px;color:#eef3f8;text-align:right;white-space:nowrap}
+.chart-val em{font-style:normal;color:var(--fg-faint);font-size:11.5px;display:block}
+
+/* callout */
+.callout{
+  border:1px solid var(--line-2);border-left:3px solid var(--accent);
+  background:var(--panel);border-radius:0 8px 8px 0;padding:18px 22px;margin:26px 0;
+}
+.callout.q{border-left-color:var(--ok)}
+.callout.w{border-left-color:#c96a5e}
+.callout p:last-child{margin-bottom:0}
+.callout .t{font-family:var(--mono);font-size:12px;letter-spacing:.09em;text-transform:uppercase;color:var(--fg-faint);margin:0 0 8px}
+
+/* key-value list */
+.kv{list-style:none;margin:0;padding:0}
+.kv li{padding:13px 0;border-bottom:1px solid var(--line);display:flex;gap:18px;flex-wrap:wrap}
+.kv li:last-child{border-bottom:0}
+.kv .k{font-family:var(--mono);font-size:13px;color:var(--accent);flex:0 0 190px;min-width:150px}
+.kv .d{font-size:14.5px;color:var(--fg-dim);flex:1;min-width:220px}
+
+/* footer */
+footer{padding:52px 0 64px}
+.foot-grid{display:flex;gap:28px;justify-content:space-between;flex-wrap:wrap;align-items:flex-start}
+.foot-brand{font-family:var(--mono);font-size:14px;color:var(--fg);font-weight:700}
+.foot-links{display:flex;gap:22px;flex-wrap:wrap;font-family:var(--mono);font-size:12.5px}
+.foot-links a{color:var(--fg-dim)}
+.foot-links a:hover{color:var(--accent)}
+
+/* responsive */
+@media (max-width:860px){
+  .metrics{grid-template-columns:repeat(2,1fr)}
+  .metric:nth-child(2){border-right:0}
+  .metric:nth-child(1),.metric:nth-child(2){border-bottom:1px solid var(--line)}
+  .g3{grid-template-columns:1fr 1fr}
+}
+@media (max-width:640px){
+  .hero{padding:56px 0 44px}
+  section{padding:56px 0}
+  .g2,.g3{grid-template-columns:1fr}
+  .chart-row{grid-template-columns:1fr;gap:6px;padding:11px 0;border-bottom:1px solid var(--line)}
+  .chart-val{text-align:left}
+  .chart-val em{display:inline;margin-left:8px}
+  .nav-links{gap:16px}
+  .kv .k{flex:1 0 100%}
+}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-inner">
+    <div class="brand">masterkey<span class="cursor">_</span></div>
+    <div class="nav-links">
+      <a href="#overview">overview</a>
+      <a href="#architecture">architecture</a>
+      <a href="#validation">validation</a>
+      <a href="#performance">performance</a>
+      <a href="#modes">modes</a>
+      <a href="#research">research</a>
+      <a href="#use">responsible&nbsp;use</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <p class="eyebrow">GPU / CUDA · secp256k1 · high-performance search</p>
+    <h1>A key-space search engine<br>built from <span class="hl">zero</span>, and proven<br>before it was made fast.</h1>
+    <p class="lede">
+      MasterKey is a Bitcoin private-key search engine written from scratch for SIMT architectures.
+      Every mathematical layer — field arithmetic, elliptic-curve operations, the Hash160 pipeline,
+      Base58Check — was validated <strong>bit-exact against independent cryptographic oracles</strong>
+      before a single performance optimization was accepted. From the first functionally correct
+      build to today, throughput grew <strong>~320×</strong>.
+    </p>
+    <p class="lede">
+      Rate depends entirely on the card, so no figure on this page appears without one:
+      <strong>~4.32 G/s</strong> on an RTX 4090, <strong>~2.46 G/s</strong> on an RTX 4070 Ti SUPER,
+      <strong>~600 M/s</strong> on an RTX 2060, <strong>~255 M/s</strong> on a Pascal-era Titan Xp.
+      All four measured on real runs — <strong>never extrapolated</strong>.
+    </p>
+
+    <p class="byline">designed, written and measured by <strong>Mr.Luis</strong></p>
+
+    <div class="term">
+      <div class="term-bar">
+        <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+        <span class="term-title">production run — RTX 4070 Ti SUPER</span>
+      </div>
+      <div class="term-body">
+<pre><span class="cm">MasterKey   by: Mr.Luis</span>
+
+<span class="p">$</span> <span class="c">masterkey_cli</span> <span class="f">-m</span> vanity <span class="f">-v</span> 1PWo3Je \
+      <span class="f">-r</span> 400000000000000000:7fffffffffffffffff <span class="f">-R</span> \
+      <span class="f">-t</span> 553648128 <span class="f">--no-glv</span> <span class="f">--out-tag</span> 2
+
+<span class="cm">[init]</span>  field arithmetic ....... <span class="o">64-bit limbs</span>
+<span class="cm">[init]</span>  batch inversion ........ <span class="o">safegcd / divstep62</span>
+<span class="cm">[init]</span>  center generation ...... <span class="o">precomputed offset table</span>
+<span class="cm">[init]</span>  center buffer layout ... <span class="o">struct-of-arrays</span>
+<span class="cm">[run ]</span>  throughput ............. <span class="f">2,442 Mkeys/s</span>
+<span class="cm">[run ]</span>  keys tested ............ <span class="f">758.01 T</span>  <span class="cm">(3.6 d continuous)</span>
+</pre>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="metrics">
+  <div class="metric">
+    <div class="v">4.32<small> G/s</small></div>
+    <div class="k">peak — RTX 4090</div>
+  </div>
+  <div class="metric">
+    <div class="v">2.46<small> G/s</small></div>
+    <div class="k">production — 4070 Ti SUPER</div>
+  </div>
+  <div class="metric">
+    <div class="v">320<small>×</small></div>
+    <div class="k">over first correct build</div>
+  </div>
+  <div class="metric">
+    <div class="v">0</div>
+    <div class="k">re-verification failures</div>
+  </div>
+</div>
+
+<main>
+
+<!-- ============ OVERVIEW ============ -->
+<section id="overview">
+  <div class="wrap">
+    <p class="sec-tag">overview</p>
+    <h2>What MasterKey is</h2>
+    <p class="muted">
+      MasterKey is a CUDA engine that brute-forces a bounded region of the secp256k1 private-key
+      space, deriving the full elliptic-curve point and Hash160 for every candidate and testing it
+      against a target — a single address, a large sorted target list, a raw curve point, or a
+      Base58 prefix. It was built as the data-collection instrument for an independent statistical
+      study, which is why total control over sampling, seeding and per-match instrumentation
+      mattered more than reusing an existing tool.
+    </p>
+    <p class="muted">
+      Three established community tools — Keyhunt, BitCrack and KeyHunt-Cuda — were used
+      <em>exclusively as reading references</em> during development, never as a fork or a copy
+      base. Every technique adopted from them was reimplemented from first principles and
+      independently revalidated before being accepted.
+    </p>
+
+    <h3>Design principles</h3>
+    <div class="grid g3">
+      <div class="card">
+        <h4><span class="n">01</span>Correctness first</h4>
+        <p>No performance optimization is accepted before bit-exact correctness is confirmed against
+        an independent oracle — never against the reference tools, which could carry undiscovered
+        bugs of their own.</p>
+      </div>
+      <div class="card">
+        <h4><span class="n">02</span>Clean separation</h4>
+        <p><code>core/</code> holds the GPU-free reference implementation, <code>gpu/</code> the CUDA
+        kernels, <code>cli/</code> the orchestration layer. Every kernel has a CPU counterpart to be
+        checked against.</p>
+      </div>
+      <div class="card">
+        <h4><span class="n">03</span>Measure, never assume</h4>
+        <p>Performance comes from controlled A/B measurement, not from intuition. Hypotheses refuted
+        by real measurement are documented in the same detail as the ones that worked.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ ARCHITECTURE ============ -->
+<section id="architecture">
+  <div class="wrap">
+    <p class="sec-tag">architecture</p>
+    <h2>The pipeline</h2>
+    <p class="muted">
+      Every candidate travels the same path. Base58Check encoding runs only on a match, so its cost
+      is fully amortized; the hot path is scalar multiplication, the affine walk, and the hash chain.
+    </p>
+
+    <div class="pipe">
+      <div class="pipe-row"><span class="pipe-node">private key k</span><span class="pipe-note">256 bits, drawn inside the search range</span></div>
+      <div class="pipe-arrow">↓ <span>secp256k1 scalar multiplication · P = k·G</span></div>
+      <div class="pipe-row"><span class="pipe-node">EC point P = (x, y)</span><span class="pipe-note">compressed-only</span></div>
+      <div class="pipe-arrow">↓ <span>SHA-256 → RIPEMD-160, message build via <code>__byte_perm</code></span></div>
+      <div class="pipe-row"><span class="pipe-node">hash160 — 20 bytes</span></div>
+      <div class="pipe-arrow">↓ <span>match check — Bloom pre-filter + binary search, or byte-range compare</span></div>
+      <div class="pipe-arrow">↓ <span>Base58Check encode — on match only</span></div>
+      <div class="pipe-row"><span class="pipe-node">Bitcoin address</span></div>
+    </div>
+
+    <h3>The grouped hop</h3>
+    <p class="muted">
+      The engine's unit of work is a <em>hop</em>: one kernel launch in which each of millions of
+      threads processes a group of 128 consecutive candidates around a single center point, walking
+      ±64 steps by affine point addition. Affine addition needs one modular division per candidate —
+      the expensive operation. Batching those divisions into a single amortized inversion
+      (Montgomery's trick: accumulate products, invert once, distribute back) drops the per-candidate
+      cost from a full inversion to a fraction of one modular multiplication. The inversion itself
+      is a binary GCD, safegcd-style with 62-bit divsteps.
+    </p>
+
+    <div class="grid g2">
+      <div class="card">
+        <h4>Sequential mode</h4>
+        <p>Each hop advances the whole center set by a fixed jump vector, precomputed once at start.
+        No center is ever rebuilt from scratch — territory is covered contiguously and exhaustively.</p>
+      </div>
+      <div class="card">
+        <h4>Random mode</h4>
+        <p>Each hop starts from a base drawn uniformly inside the range with an independent seed,
+        then covers a contiguous exhaustive window before drawing the next base — unbiased range
+        coverage without systematic repetition of territory.</p>
+      </div>
+    </div>
+
+    <div class="callout">
+      <p class="t">Convergent engineering</p>
+      <p class="muted small">The same batched-inversion technique is the core of <code>mkp224o</code>,
+      the vanity generator for Tor v3 / ed25519 — independent convergence on the same answer for the
+      same class of constrained elliptic-curve search problem, confirmed by reading that project's
+      source.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ VALIDATION ============ -->
+<section id="validation">
+  <div class="wrap">
+    <p class="sec-tag">validation</p>
+    <h2>Proven against independent oracles</h2>
+    <p class="muted">
+      Each layer was checked against an audited, widely trusted implementation before any
+      optimization work began on it. This table is the actual validation record of the engine.
+    </p>
+
+    <div class="tw">
+      <table>
+        <thead>
+          <tr><th>Layer</th><th>Validation oracle</th><th>Coverage</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Field arithmetic (<code>Int256</code>, 32 and 64-bit)</td>
+            <td class="mono">GMP</td>
+            <td><span class="ok">1,000,000+ cases/op — 100% parity</span></td>
+          </tr>
+          <tr>
+            <td>Elliptic-curve point operations</td>
+            <td class="mono">libsecp256k1 v0.7.1 <span class="tiny">(Bitcoin Core's curve library)</span></td>
+            <td><span class="ok">1,000,000+ cases</span><div class="tiny">including privkey = 1 and privkey = order−1</div></td>
+          </tr>
+          <tr>
+            <td>Hash160 pipeline</td>
+            <td class="mono">FIPS 180-4 vectors</td>
+            <td><span class="ok">standard golden vectors</span></td>
+          </tr>
+          <tr>
+            <td>Base58Check</td>
+            <td class="mono">publicly known puzzle addresses</td>
+            <td><span class="ok">byte-by-byte re-verification</span></td>
+          </tr>
+          <tr>
+            <td>Binary-GCD modular inversion</td>
+            <td class="mono">GMP</td>
+            <td><span class="ok">1,000,000 / 1,000,000</span></td>
+          </tr>
+          <tr>
+            <td>GLV endomorphism (β/λ)</td>
+            <td class="mono">independent Python curve arithmetic + GPU bridge kernel</td>
+            <td><span class="ok">20,000 / 20,000</span></td>
+          </tr>
+          <tr>
+            <td>Offset-table center generation</td>
+            <td class="mono">byte-by-byte vs. full <code>scalarMult</code> reference path</td>
+            <td><span class="ok">4,325,376 / 4,325,376 identical</span><div class="tiny">reproduced on two physically distinct GPUs</div></td>
+          </tr>
+          <tr>
+            <td>Struct-of-arrays center buffer</td>
+            <td class="mono">parity suite + external Python <code>ecdsa</code> check</td>
+            <td><span class="ok">1,070,753 matches — zero failures</span><div class="tiny">a real found key re-derived with no code from this project</div></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Bugs the validation caught</h3>
+    <p class="muted">
+      None of these were found by reading the code. Every one was isolated by an automated test
+      failing:
+    </p>
+    <ul class="kv">
+      <li><span class="k">generator constant</span><span class="d">A transcription error in the 256-bit generator point <code>G</code> — 100% test failure, isolated by comparing against operations using arbitrary points. It happened <em>twice</em>, independently, which is why 256-bit constants are never hand-transcribed in this project anymore.</span></li>
+      <li><span class="k">carry chain</span><span class="d">A structural bug in a hand-written PTX carry chain: two carries incorrectly interleaved through the same hardware flag.</span></li>
+      <li><span class="k">jump computation</span><span class="d">A miscalculated jump between sequential batches, causing overlap instead of coverage of new territory.</span></li>
+      <li><span class="k">silent result loss</span><span class="d">A fixed 256-slot per-hop result buffer silently discarding matches past the 256th in a single hop — found while investigating a collection rate ~27× below prediction on a high-frequency prefix.</span></li>
+      <li><span class="k">range overscan</span><span class="d">An overscan bug in the production range mode, walking marginally outside the declared bounds.</span></li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============ PERFORMANCE ============ -->
+<section id="performance">
+  <div class="wrap">
+    <p class="sec-tag">performance</p>
+    <h2>One card, 320×:<br>7.72 M/s → 2.46 G/s</h2>
+    <p class="muted">
+      The trajectory below is a single GPU — an RTX 4070 Ti SUPER — measured at each milestone in
+      random mode, so the gains are the engine's and not a hardware upgrade. The first bar is the
+      first functionally correct build; it is not a rendering artifact, it is 0.3% of the current
+      figure. Where the finished engine lands on other cards is in the table below.
+    </p>
+
+    <div class="chart">
+      <p class="tiny" style="margin:0 0 14px;padding-bottom:12px;border-bottom:1px solid var(--line);font-family:var(--mono);letter-spacing:.04em">
+        SAME CARD THROUGHOUT — RTX 4070 Ti SUPER · random mode · vanity target
+      </p>
+      <div class="chart-row">
+        <div class="chart-label">first correct build</div>
+        <div class="chart-track"><div class="chart-fill dim" style="width:0.31%"></div></div>
+        <div class="chart-val">7.72 M/s<em>baseline</em></div>
+      </div>
+      <div class="chart-row">
+        <div class="chart-label">end of phase 1</div>
+        <div class="chart-track"><div class="chart-fill" style="width:52.8%"></div></div>
+        <div class="chart-val">~1,300 M/s<em>168×</em></div>
+      </div>
+      <div class="chart-row">
+        <div class="chart-label">+ offset-table centers</div>
+        <div class="chart-track"><div class="chart-fill" style="width:94.3%"></div></div>
+        <div class="chart-val">~2,322 M/s<em>301×</em></div>
+      </div>
+      <div class="chart-row">
+        <div class="chart-label">+ SoA center buffer</div>
+        <div class="chart-track"><div class="chart-fill" style="width:100%"></div></div>
+        <div class="chart-val">~2,462 M/s<em>320×</em></div>
+      </div>
+    </div>
+
+    <h3>What produced the gains</h3>
+    <div class="tw">
+      <table>
+        <thead>
+          <tr><th>Optimization</th><th>Origin</th><th class="num">Measured gain</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Candidate grouping — batched modular inversion</td><td class="tiny">read from KeyHunt-Cuda, ported with own arithmetic</td><td class="num gain">~17.6×</td></tr>
+          <tr><td>Kernel split — EC vs. hash</td><td class="tiny">own diagnosis via <code>cudaEvent</code></td><td class="num gain">~3.8×</td></tr>
+          <tr><td>Offset-table center generation</td><td class="tiny">own diagnosis — stage was 32.1% of hop time</td><td class="num gain">1.71–1.81×</td></tr>
+          <tr><td>Compressed-only mode</td><td class="tiny">scope decision</td><td class="num gain">1.66–1.83×</td></tr>
+          <tr><td>Native 64-bit limb field arithmetic</td><td class="tiny">own rewrite</td><td class="num gain">+26.6%</td></tr>
+          <tr><td><code>__noinline__</code> on hash/match functions</td><td class="tiny">read from KeyHunt-Cuda</td><td class="num gain">+22.1%</td></tr>
+          <tr><td>Block size 256 → 128 threads</td><td class="tiny">occupancy math + measurement</td><td class="num gain">+14–15%</td></tr>
+          <tr><td>SHA-256 message build via <code>__byte_perm</code></td><td class="tiny">read from KeyHunt-Cuda, independently validated</td><td class="num gain">+8.9%</td></tr>
+          <tr><td>Struct-of-arrays center buffer</td><td class="tiny">own coalescence hypothesis</td><td class="num gain">+2.3–2.6%</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Every card measured</h3>
+    <p class="muted">
+      There is no single "keys per second" figure for this engine, and any tool that quotes one
+      without naming a card is quoting an accident of which GPU it ran on. Four cards across three
+      NVIDIA architectures were measured on real runs — never estimated from a spec sheet.
+    </p>
+    <div class="tw">
+      <table class="wide">
+        <thead>
+          <tr>
+            <th>GPU</th><th>Architecture</th><th class="num">SM</th><th class="num">Clock</th>
+            <th class="num">Throughput</th><th class="num">Mk/s per SM·GHz</th><th style="width:16%">relative</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>RTX 4090</td><td class="tiny">Ada Lovelace</td>
+            <td class="num">128</td><td class="num">2.52 GHz</td>
+            <td class="num" style="color:var(--accent)">4,324–4,494</td>
+            <td class="num">13.93</td>
+            <td><div class="bar"><i style="width:100%"></i></div></td>
+          </tr>
+          <tr>
+            <td>RTX 4070 Ti SUPER</td><td class="tiny">Ada Lovelace</td>
+            <td class="num">66</td><td class="num">2.61 GHz</td>
+            <td class="num" style="color:var(--accent)">2,440–2,464</td>
+            <td class="num">14.16</td>
+            <td><div class="bar"><i style="width:54.8%"></i></div></td>
+          </tr>
+          <tr>
+            <td>RTX 2060 12GB</td><td class="tiny">Turing</td>
+            <td class="num">34</td><td class="num">1.85 GHz</td>
+            <td class="num" style="color:var(--accent)">591–607</td>
+            <td class="num">9.49</td>
+            <td><div class="bar"><i style="width:13.5%"></i></div></td>
+          </tr>
+          <tr>
+            <td>Titan Xp</td><td class="tiny">Pascal</td>
+            <td class="num">30</td><td class="num">1.58 GHz</td>
+            <td class="num" style="color:var(--accent)">248–262</td>
+            <td class="num">5.38</td>
+            <td><div class="bar"><i style="width:5.8%"></i></div></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="tiny" style="margin-top:14px">
+      Throughput in Mkeys/s, random mode, vanity target. The Titan Xp figure is the spread across
+      four physical cards in one machine; the others are spreads across repeated production runs.
+      Card variants confirmed by <code>cudaGetDeviceProperties</code>, not inferred from the model
+      name.
+    </p>
+
+    <div class="callout">
+      <p class="t">Efficiency does not cross architectures</p>
+      <p class="muted small">
+        The rightmost column is the reason each figure carries its GPU. Between two Ada cards the
+        constant holds to within 2% — 13.93 against 14.16 — so a 4090 figure predicts a 4070 Ti SUPER
+        figure well. Across generations it collapses: <strong>Turing delivers 67% of Ada's
+        efficiency per SM·GHz, Pascal only 38%</strong>. Extrapolating the RTX 2060 from the Ada
+        constant predicted ~780 Mk/s; the measured value was ~600, an error of <strong>+23%</strong>.
+        For the Pascal Titan Xp the same extrapolation was off by <strong>2.6×</strong>. Every card
+        on this page was run before its number was written down.
+      </p>
+    </div>
+
+    <div class="callout w">
+      <p class="t">Negative results, reported with the same rigor</p>
+      <p class="muted small">
+        Cross-thread batch inversion (block level: 7× slower; warp level: 17× slower).
+        Hand-written inline PTX (7.6% slower than <code>nvcc</code>'s own <code>uint64_t</code> codegen).
+        GLV endomorphism applied to <code>scalarMult</code> (≈0 — scalar multiplication had stopped
+        being the hot path after grouping; the endomorphism was later repurposed successfully for a
+        different job). Splitting EC and hashing into two already-grouped kernels (nearly 2× slower —
+        lost coalescence). <code>__launch_bounds__</code> forcing fewer registers (register spill ate
+        the occupancy gain). A pre-negated Y table (trading a cheap register subtraction for an extra
+        global memory read was a bad deal).
+      </p>
+      <p class="muted small" style="margin-top:12px">
+        The most instructive one: a benchmark comparing the real modular inversion against a
+        pass-through stub found the <em>real</em> version consistently ~9% <em>faster</em>. The local
+        array traffic that batched inversion requires (~4 KB/thread, confirmed via
+        <code>nvcc -Xptxas -v</code>) already dominates the stage at production group size; the
+        inversion's extra register arithmetic hides that latency through instruction-level
+        parallelism instead of adding visible cost. Confirmed from a second angle by a clean
+        crossover as group size varies. Conclusion: don't optimize it — it is already effectively free.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ MODES / CLI ============ -->
+<section id="modes">
+  <div class="wrap">
+    <p class="sec-tag">modes &amp; interface</p>
+    <h2>Four search modes, one kernel</h2>
+    <p class="muted">
+      All modes share roughly 90% of the same kernel — the grouped hop — and differ only in the
+      final match-check function.
+    </p>
+
+    <div class="tw">
+      <table>
+        <thead><tr><th>Mode</th><th>Matches against</th><th>Check strategy</th></tr></thead>
+        <tbody>
+          <tr><td class="mono" style="color:var(--accent)">address</td><td>Bitcoin addresses</td><td class="tiny">Bloom pre-filter + binary search over a sorted target list — designed for large lists</td></tr>
+          <tr><td class="mono" style="color:var(--accent)">rmd160</td><td>raw hash160 targets</td><td class="tiny">same path, skipping Base58 decoding of the target list</td></tr>
+          <tr><td class="mono" style="color:var(--accent)">xpoint</td><td>raw EC X coordinate</td><td class="tiny">no hashing at all — used when the target is already known as a curve point</td></tr>
+          <tr><td class="mono" style="color:var(--accent)">vanity</td><td>Base58 address prefix</td><td class="tiny">byte-range compare against the computed hash160 — no Bloom needed for the small number of ranges a text prefix produces</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Command-line interface</h3>
+    <p class="muted">
+      The flag set deliberately mirrors Keyhunt's, with semantics read directly from its source
+      rather than guessed — so there is no learning curve for anyone already using it.
+    </p>
+
+    <div class="term">
+      <div class="term-bar">
+        <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+        <span class="term-title">masterkey_cli — options</span>
+      </div>
+      <div class="term-body">
+<pre><span class="f">-m</span> MODE      <span class="cm">rmd160 | address | xpoint | vanity</span>
+<span class="f">-f</span> FILE      <span class="cm">target list file (all modes except vanity)</span>
+<span class="f">-v</span> PREFIX    <span class="cm">Base58 address prefix, vanity mode only</span>
+<span class="f">-r</span> A:B       <span class="cm">explicit hex range, START or START:END</span>
+<span class="f">-b</span> BITS      <span class="cm">range = [2^(BITS-1), 2^BITS)</span>
+<span class="f">-R</span>           <span class="cm">random mode — each hop starts at a random base</span>
+<span class="f">-t</span> N         <span class="cm">total GPU parallelism — candidates per kernel batch</span>
+<span class="f">--out-tag</span> T  <span class="cm">suffix for output files, for parallel instances</span>
+<span class="f">--block-size</span> <span class="cm">threads per block override</span>
+<span class="f">--no-glv</span>     <span class="cm">skip the two GLV match variants — keeps every found</span>
+             <span class="cm">key strictly inside the declared range</span>
+<span class="f">--fix-bits</span>   <span class="cm">pin chosen private-key bit positions to 1</span>
+<span class="f">--fix-bits-random</span> N
+             <span class="cm">thousands of never-repeating N-bit combinations per</span>
+             <span class="cm">launch, via a deterministic rank→combination bijection</span>
+</pre>
+      </div>
+    </div>
+    <p class="tiny" style="margin-top:16px">
+      Graceful interruption is a first-class feature: a running search can be swapped for a new
+      binary mid-flight without truncating the in-progress results file or duplicating a single
+      record.
+    </p>
+  </div>
+</section>
+
+<!-- ============ RESEARCH ============ -->
+<section id="research">
+  <div class="wrap">
+    <p class="sec-tag">research</p>
+    <h2>Why it was built</h2>
+    <p class="muted">
+      MasterKey is the instrument of an independent statistical study on the conditional uniformity
+      of Bitcoin addresses under a vanity-prefix filter. That study needs hundreds of trillions of
+      tested candidates and tens of thousands of samples — a scale that is not reachable in
+      reasonable time or cost without the engineering work described above.
+    </p>
+    <p class="muted">
+      Using an existing tool was not an option for it, because the study depends on things those
+      tools do not expose: guaranteed independent RNG seeding per process, independent verification
+      of every single match, and per-match instrumentation (hop index, timestamp) that has to be
+      trusted at the level of the sampling process itself.
+    </p>
+
+    <div class="grid g3">
+      <div class="card">
+        <h4>Engineering record</h4>
+        <p>A full account of the architecture, the validation methodology, and every optimization —
+        including the refuted ones — written to be replicable and auditable.</p>
+      </div>
+      <div class="card">
+        <h4>Statistical study</h4>
+        <p>A separate manuscript on conditional uniformity under prefix filtering, with a
+        pre-registered hypothesis and timestamped commitment before collection.</p>
+      </div>
+      <div class="card">
+        <h4>Collected corpus</h4>
+        <p>Hundreds of trillions of candidates tested; every reported match independently
+        re-verified outside the engine that produced it.</p>
+      </div>
+    </div>
+
+    <div class="callout q">
+      <p class="t">Method discipline</p>
+      <p class="muted small">
+        A working hypothesis in the study — that matches concentrate in the upper half of a given
+        range — was tested against 136,072 unique collected addresses across two GPUs and
+        <strong>refuted</strong>. It is reported as such. Results that contradict the expectation
+        carry the same weight here as results that confirm it.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ RESPONSIBLE USE ============ -->
+<section id="use">
+  <div class="wrap">
+    <p class="sec-tag">responsible use</p>
+    <h2>On dual use</h2>
+    <p class="muted">
+      A high-performance search engine for the Bitcoin private-key space is dual-use technology. The
+      same mechanism that collects data inside a bounded, deliberately chosen range — with no
+      relation to funded addresses — could in principle be pointed at addresses holding real value.
+      Stating that plainly is part of the work, not a disclaimer bolted onto it.
+    </p>
+
+    <ul class="kv">
+      <li><span class="k">scope</span><span class="d">The ranges and prefixes used in collection have no known relation to funded addresses. The stated and only purpose of development is to serve as a research instrument.</span></li>
+      <li><span class="k">infrastructure</span><span class="d">Every cloud instance used was security-audited before long runs: filesystem permissions, authorized SSH keys, and confirmed absence of third-party access.</span></li>
+      <li><span class="k">source code</span><span class="d">Not publicly released in this version. Whether the engineering detail should be published in full, summarized without source, or provided on request under triage is treated as an explicit open decision — not an omission.</span></li>
+      <li><span class="k">scale, honestly</span><span class="d">A brute-force search of a full 256-bit key space is not made feasible by any factor described here. What changes with a ~320× speedup is the practical reach of statistical sampling inside deliberately bounded ranges — nothing more.</span></li>
+    </ul>
+
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap foot-grid">
+    <div>
+      <div class="foot-brand">masterkey<span style="color:var(--accent)">_</span></div>
+      <p class="tiny" style="margin:8px 0 0">
+        CUDA search engine for secp256k1 · built from scratch<br>
+        by <strong style="color:var(--accent);font-weight:700">Mr.Luis</strong> · masterkeybtc.com
+      </p>
+    </div>
+    <div class="foot-links">
+      <a href="#architecture">architecture</a>
+      <a href="#validation">validation</a>
+      <a href="#performance">performance</a>
+      <a href="#modes">modes</a>
+      <a href="#use">responsible use</a>
+    </div>
+  </div>
+  <div class="wrap" style="margin-top:34px;padding-top:22px;border-top:1px solid var(--line)">
+    <p class="tiny" style="margin:0">
+      Not affiliated with, endorsed by, or derived from Keyhunt, BitCrack, KeyHunt-Cuda or
+      CUDACyclone. Those projects were read as references during development and are credited as
+      such throughout this page. Every performance figure here comes from a real run on the named
+      GPU.
+    </p>
+  </div>
+</footer>
+
+<script type="application/ld+json">
+{
+  "@context":"https://schema.org",
+  "@type":"SoftwareApplication",
+  "name":"MasterKey",
+  "applicationCategory":"DeveloperApplication",
+  "operatingSystem":"Linux (CUDA)",
+  "author":{"@type":"Person","name":"Mr.Luis"},
+  "creator":{"@type":"Person","name":"Mr.Luis"},
+  "url":"https://masterkeybtc.com/",
+  "description":"A from-scratch CUDA engine for secp256k1 key-space search, validated bit-exact against independent cryptographic oracles. Measured on four GPUs across three NVIDIA architectures: ~4.32 G candidates/s on an RTX 4090, ~2.46 G/s on an RTX 4070 Ti SUPER, ~600 M/s on an RTX 2060, ~255 M/s on a Titan Xp.",
+  "featureList":[
+    "address / rmd160 / xpoint / vanity search modes",
+    "batched modular inversion (Montgomery trick) with safegcd binary GCD",
+    "precomputed offset-table center generation",
+    "struct-of-arrays center buffer for coalesced access",
+    "Keyhunt-compatible command-line flags"
+  ]
+}
+</script>
+
+</body>
+</html>
