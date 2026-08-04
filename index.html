@@ -12,8 +12,9 @@
 <meta property="og:url" content="https://masterkeybtc.com/">
 <meta property="og:title" content="MasterKey — a from-scratch CUDA engine for secp256k1 key-space search">
 <meta property="og:description" content="~4.32 G candidates/s on an RTX 4090, ~2.46 G/s on a 4070 Ti SUPER, ~255 M/s on a Titan Xp — four GPUs, three architectures, all measured. ~320× over the first correct version, and every mathematical layer validated bit-exact before a single optimization was accepted.">
-<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:card" content="summary">
 <meta name="theme-color" content="#0a0d12">
+<meta name="color-scheme" content="dark">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230a0d12'/%3E%3Ctext x='16' y='22' font-family='monospace' font-size='14' font-weight='bold' fill='%23f7931a' text-anchor='middle'%3EMK%3C/text%3E%3C/svg%3E">
 
 <style>
@@ -26,7 +27,9 @@
   --line-2:#2a3441;
   --fg:#d5dde6;
   --fg-dim:#94a1b0;
-  --fg-faint:#68758a;
+  /* #68758a reprovava em contraste WCAG AA nos tres fundos (4.22 / 3.89 / 3.66 -- minimo 4.5)
+     e e usado em texto de 11 a 13px, tamanho normal, que exige 4.5. #7a8798 da 4.68 no pior caso. */
+  --fg-faint:#7a8798;
   --accent:#f7931a;
   --accent-dim:#b96f14;
   --ok:#3fb950;
@@ -63,6 +66,23 @@ main,header,footer,nav{position:relative;z-index:1}
 
 a{color:var(--accent);text-decoration:none}
 a:hover{text-decoration:underline}
+
+/* Indicador de foco para navegacao por teclado: sem isso nao ha como saber onde se esta ao
+   percorrer a pagina com Tab. :focus-visible (e nao :focus) so aparece no teclado, entao o
+   clique de mouse continua sem contorno. */
+a:focus-visible,button:focus-visible,[tabindex]:focus-visible{
+  outline:2px solid var(--accent);
+  outline-offset:3px;
+  border-radius:2px;
+}
+
+/* Pula a navegacao e vai direto ao conteudo. Fica fora da tela ate receber foco. */
+.skip-link{
+  position:absolute;left:-9999px;top:0;z-index:100;
+  background:var(--accent);color:#0a0d12;
+  padding:10px 16px;font-family:var(--mono);font-size:13px;font-weight:700;
+}
+.skip-link:focus{left:0;text-decoration:none}
 code,kbd,pre,.mono{font-family:var(--mono)}
 
 .wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px}
@@ -251,7 +271,9 @@ footer{padding:52px 0 64px}
 </head>
 <body>
 
-<nav class="nav">
+<a class="skip-link" href="#overview">Skip to content</a>
+
+<nav class="nav" aria-label="Section navigation">
   <div class="nav-inner">
     <div class="brand">masterkey<span class="cursor">_</span></div>
     <div class="nav-links">
@@ -823,6 +845,7 @@ footer{padding:52px 0 64px}
   "author":{"@type":"Person","name":"Mr.Luis"},
   "creator":{"@type":"Person","name":"Mr.Luis"},
   "url":"https://masterkeybtc.com/",
+  "inLanguage":"en",
   "description":"A from-scratch CUDA engine for secp256k1 key-space search, validated bit-exact against independent cryptographic oracles. Measured on four GPUs across three NVIDIA architectures: ~4.32 G candidates/s on an RTX 4090, ~2.46 G/s on an RTX 4070 Ti SUPER, ~600 M/s on an RTX 2060, ~255 M/s on a Titan Xp.",
   "featureList":[
     "address / rmd160 / xpoint / vanity search modes",
