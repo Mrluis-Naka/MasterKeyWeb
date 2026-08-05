@@ -3,6 +3,16 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- CSP por meta tag: o GitHub Pages nao permite cabecalhos HTTP proprios, e esta e a unica
+     via de aplicar politica de seguranca aqui. A pagina nao tem NENHUM JavaScript executavel
+     (o unico <script> e application/ld+json, bloco de dados que nao executa), entao script-src
+     cai no default-src 'none' -- nada pode rodar. 'unsafe-inline' so em style, exigido pelo
+     <style> embutido e pelos 26 atributos style=. img-src data: cobre o favicon SVG embutido.
+     frame-ancestors e ignorado em meta tag (so vale como cabecalho), fica declarado mesmo assim
+     para quando/se o site sair do Pages. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'">
+<meta name="referrer" content="strict-origin-when-cross-origin">
 <title>MasterKey — a from-scratch CUDA engine for secp256k1 key-space search</title>
 <meta name="description" content="MasterKey is a Bitcoin key-space search engine written from scratch in CUDA: ~4.32 G candidates/s on an RTX 4090, ~2.46 G/s on a 4070 Ti SUPER, measured across four GPUs and three architectures — every mathematical layer validated bit-exact against independent cryptographic oracles.">
 <link rel="canonical" href="https://masterkeybtc.com/">
@@ -524,6 +534,23 @@ footer{padding:52px 0 64px}
       <li><span class="k">silent result loss</span><span class="d">A fixed 256-slot per-hop result buffer silently discarding matches past the 256th in a single hop — found while investigating a collection rate ~27× below prediction on a high-frequency prefix.</span></li>
       <li><span class="k">range overscan</span><span class="d">An overscan bug in the production range mode, walking marginally outside the declared bounds.</span></li>
     </ul>
+
+    <div class="callout">
+      <p class="t">Check it instead of believing it</p>
+      <p class="muted small">249,476 addresses collected by this engine are published together with
+      the private key that generates each one, at
+      <a href="https://github.com/Mrluis-Naka/MasterKeyWeb" rel="noopener noreferrer">github.com/Mrluis-Naka/MasterKeyWeb</a>
+      — raw file <a href="/VANITYKEYFOUND2.txt">VANITYKEYFOUND2.txt</a> (13.7 MB). The keys are
+      worthless by construction: all of them sit inside <code>[2^70, 2^71)</code>, the public search
+      interval of Bitcoin puzzle #71, and none has ever held a balance.
+      <br><br>
+      Published alongside it is <a href="/verify.py">verify.py</a>, which re-derives every address
+      from its key and compares. It carries no third-party dependency and not one line from this
+      engine — secp256k1 arithmetic, Base58Check and RIPEMD-160 are implemented from the
+      specifications, so a passing run is evidence about the data rather than about a shared
+      library. An address list alone would prove nothing; the key is the evidence, because deriving
+      the address from it only works one way.</p>
+    </div>
   </div>
 </section>
 
@@ -800,6 +827,7 @@ footer{padding:52px 0 64px}
       <li><span class="k">scope</span><span class="d">The ranges and prefixes used in collection have no known relation to funded addresses. The stated and only purpose of development is to serve as a research instrument.</span></li>
       <li><span class="k">infrastructure</span><span class="d">Every cloud instance used was security-audited before long runs: filesystem permissions, authorized SSH keys, and confirmed absence of third-party access.</span></li>
       <li><span class="k">source code</span><span class="d">Not publicly released in this version. Whether the engineering detail should be published in full, summarized without source, or provided on request under triage is treated as an explicit open decision — not an omission.</span></li>
+      <li><span class="k">collected data</span><span class="d">Published in full: 249,476 addresses with their private keys, plus an independent verifier, at <a href="https://github.com/Mrluis-Naka/MasterKeyWeb" rel="noopener noreferrer">github.com/Mrluis-Naka/MasterKeyWeb</a>. Releasing the data costs nothing in dual-use terms — the keys lie in a public puzzle interval and hold no value — while making every claim on this page checkable by a third party.</span></li>
       <li><span class="k">scale, honestly</span><span class="d">A brute-force search of a full 256-bit key space is not made feasible by any factor described here. What changes with a ~320× speedup is the practical reach of statistical sampling inside deliberately bounded ranges — nothing more.</span></li>
     </ul>
 
@@ -816,6 +844,11 @@ footer{padding:52px 0 64px}
         CUDA search engine for secp256k1 · built from scratch<br>
         by <strong style="color:var(--accent);font-weight:700">Mr.Luis</strong> · masterkeybtc.com
       </p>
+      <p class="tiny" style="margin:14px 0 0">
+        donations · <code style="color:var(--fg)">1MrLuisAQkctS18dZhXD2ak9vekzZ8A9T1</code><br>
+        <span style="color:var(--fg-faint)">not part of the published dataset — its private key is
+        not published anywhere</span>
+      </p>
     </div>
     <div class="foot-links">
       <a href="#architecture">architecture</a>
@@ -823,6 +856,8 @@ footer{padding:52px 0 64px}
       <a href="#performance">performance</a>
       <a href="#modes">modes</a>
       <a href="#use">responsible use</a>
+      <a href="https://github.com/Mrluis-Naka/MasterKeyWeb" rel="noopener noreferrer">github</a>
+      <a href="/VANITYKEYFOUND2.txt">dataset</a>
     </div>
   </div>
   <div class="wrap" style="margin-top:34px;padding-top:22px;border-top:1px solid var(--line)">
