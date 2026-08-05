@@ -535,6 +535,34 @@ footer{padding:52px 0 64px}
       <li><span class="k">range overscan</span><span class="d">An overscan bug in the production range mode, walking marginally outside the declared bounds.</span></li>
     </ul>
 
+    <div class="callout w">
+      <p class="t">Why validation runs against oracles, not against other tools</p>
+      <p class="muted small">Design principle 01 says correctness is confirmed against an
+      independent oracle, <em>never</em> against the reference tools, because those could carry
+      undiscovered bugs of their own. That was written as a precaution. It is no longer
+      hypothetical.
+      <br><br>
+      <strong>KeyHunt-Cuda v1.07, built on Linux with a current toolchain following the project's
+      own Makefile, produces a binary whose Base58Check encoder emits invalid checksums.</strong>
+      It derives the correct private key, computes the correct hash160, then fails to match its own
+      target and discards the hit with a warning. Verified on an RTX 4070 Ti against Bitcoin puzzle
+      #20: the same source, rebuilt only with different optimization flags, writes the key to
+      <code>Found.txt</code> instead of rejecting it.
+      <br><br>
+      <strong>If you run KeyHunt-Cuda, check your own build — it takes ten seconds.</strong> Run
+      <code>./KeyHunt -c</code> and look at the five vectors whose addresses start with
+      <code>1</code>. If any says <code>Failed</code>, that binary finds keys and throws them away.
+      <br><br>
+      Two further defects do not depend on how you compiled: the search never stops at the end of
+      the range you declared (measured: 251,658,240 keys scanned inside a 10,001-key range, with
+      the tool's own counter reporting 2,516,582% complete), and in random mode the starting key is
+      drawn from <code>[0, rangeEnd)</code> — the start of your range is ignored.
+      <br><br>
+      Full method, evidence and the list of things that were checked and found <em>correct</em>:
+      <a href="https://github.com/Mrluis-Naka/MasterKeyWeb/blob/main/keyhunt-cuda-audit.md" rel="noopener noreferrer">keyhunt-cuda-audit.md</a>.
+      No source file was modified for these tests.</p>
+    </div>
+
     <div class="callout">
       <p class="t">Check it instead of believing it</p>
       <p class="muted small">249,476 addresses collected by this engine are published together with
@@ -770,9 +798,10 @@ footer{padding:52px 0 64px}
     <h2>Why it was built</h2>
     <p class="muted">
       MasterKey is the instrument of an independent statistical study on the conditional uniformity
-      of Bitcoin addresses under a vanity-prefix filter. That study needs hundreds of trillions of
-      tested candidates and tens of thousands of samples — a scale that is not reachable in
-      reasonable time or cost without the engineering work described above.
+      of Bitcoin addresses under a vanity-prefix filter. Its frozen sample is ~51,000 addresses,
+      drawn from ~760 trillion tested candidates — a scale that is not reachable in reasonable time
+      or cost without the engineering work described above. Production collection continued well
+      past that snapshot, which is why the published corpus below is several times larger.
     </p>
     <p class="muted">
       Using an existing tool was not an option for it, because the study depends on things those
@@ -794,7 +823,8 @@ footer{padding:52px 0 64px}
       </div>
       <div class="card">
         <h4>Collected corpus</h4>
-        <p>Hundreds of trillions of candidates tested; every reported match independently
+        <p>249,476 addresses published with the key of each — about 3.8 quadrillion candidates
+        tested to produce them, one match every ~15.3 billion keys. Every match independently
         re-verified outside the engine that produced it.</p>
       </div>
     </div>
