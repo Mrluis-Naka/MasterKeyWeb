@@ -224,9 +224,9 @@ This engine was built to serve as the collection instrument for an independent s
 
 This work describes, in considerable technical detail, how to close most of the performance gap against the fastest known Bitcoin private-key search tools of their kind. A high-performance search engine for the Bitcoin private-key space is dual-use technology: the same mechanism that enables data collection for research (searching within a restricted, already-delimited range, unrelated to addresses holding real balances) could, in principle, be repurposed to attempt to force keys of addresses holding real funds.
 
-Mitigating factors: the range and prefixes used in the associated collection have no known relation to funded addresses; the declared and sole purpose of this development is to serve as a statistical-research instrument; a security audit was conducted over all cloud infrastructure used (filesystem permissions, authorised SSH keys, absence of third-party access confirmed on every instance); source code is not publicly published in this version — the author's decision, subject to review before any formal submission.
+Mitigating factors: the range and prefixes used in the associated collection have no known relation to funded addresses; the declared and sole purpose of this development is to serve as a statistical-research instrument; a security audit was conducted over all cloud infrastructure used (filesystem permissions, authorised SSH keys, absence of third-party access confirmed on every instance); the source code itself is not published — a final decision, declared here explicitly rather than omitted.
 
-An explicit decision on the extent to which this document's engineering details should be published in full, summarised without source code, or provided on request under screening, has not yet been made — treated as an explicit pending item, not an omission, the same tension present in offensive-security publications generally.
+This document publishes the engineering detail in full: the architecture, the validation methodology, and the complete optimisation trajectory, including every hypothesis tested and refuted. What remains withheld is the source code alone — the same distinction the associated study manuscript draws in its own data-availability section (Section 9 there): open data and open method, closed instrument.
 
 ---
 
@@ -246,7 +246,6 @@ An explicit decision on the extent to which this document's engineering details 
 2. Obtain access to an environment with a working profiler (Nsight Compute) for stage-level diagnosis at a precision greater than the current manual instrumentation allows.
 3. Extend the SoA layout optimisation (Section 6.4), today scoped exclusively to vanity mode without fixed bits, to the hash160/xpoint modes and to fixed-bit mode (`--fix-bits`) — not done in this round as a scope decision, not because of an identified technical limitation.
 4. Replicate on a different GPU architecture generation (Limitation 1).
-5. Formalise and publish (subject to the pending decision of Section 10) the complete source code, including the commit history documenting each optimisation decision.
 
 ---
 
