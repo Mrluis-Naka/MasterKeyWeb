@@ -27,7 +27,8 @@ total reported in Section 3.1. Nothing in this upload duplicates it.
 | `VANITYKEYFOUND_1oeg42bit.txt`, `VANITYKEYFOUND_1MBX35bit.txt`, `VANITYKEYFOUND_13qZ35bit.txt`, `EXHAUSTIVE_CENSUS_20bit.txt` | Three independent prefix censuses + the fully exhaustive 20-bit census | Section 3.4 |
 | `FIXED_BIT_LINE_SWEEP_RETEST_DATASET.txt` (+ its own `_README.md`), `FIXED_BIT_LINE_1PWo3JeB9_SUBSET.txt` | Raw sweep + deep-retest data (Section 3.8, Phases 1-2) and the `1PWo3JeB9`-prefix subset behind the formal test of §3.8.4 | Section 3.8 |
 | `EC_SCALAR_MULT_TRACE_DATASET.jsonl` (+ its own `_README.md`) | Consolidated scalar-multiplication trace dataset behind the two exact identities | Section 4 |
-| `PRE_REGISTERED_HYPOTHESIS.txt`, `PRE_REGISTERED_HYPOTHESIS.txt.ots` | The pre-registered hypothesis document and its OpenTimestamps proof | Section 2.8 |
+| `PRE_REGISTERED_HYPOTHESIS.txt`, `PRE_REGISTERED_HYPOTHESIS.txt.ots` | The pre-registered hypothesis document (original, in Portuguese — its exact byte content is what the SHA-256 hash and OpenTimestamps proof anchor; **do not edit**) and the proof itself | Section 2.8 |
+| `PRE_REGISTERED_HYPOTHESIS_EN_TRANSLATION.txt` | An English translation of the above, for readability only — carries no cryptographic standing of its own; verify against the original file, not this one | Section 2.8 (supporting) |
 | `statistical_power_analysis.py` | Statistical power-analysis script (self-contained, no data file needed) | Section 2.7 |
 | `base58check.py` | From-scratch Base58Check decoder (no third-party packages), used by the script below | Supports Section 3.6.2 |
 | `section3_chi_square_reconstruction.py` | Reproduces the confirmatory test (§3.3), the three range-generalisation censuses and the encoding-boundary/Benford tests (§3.4-3.5) from the raw files above, cross-checked against `scipy` | Sections 3.3, 3.4, 3.5 |
