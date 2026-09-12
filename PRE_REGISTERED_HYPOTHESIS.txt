@@ -1,0 +1,52 @@
+HIPOTESE PRE-REGISTRADA -- posicao 7, teste direcionado
+Travada em: 2026-07-15 (antes de olhar dados novos de instancias 3/4/5)
+
+==============================================================================
+CONJUNTO GERADOR DE HIPOTESE (congelado neste snapshot, nunca mais usado
+para "escolher" a hipotese depois disso)
+==============================================================================
+
+Fonte: VANITYKEYFOUND.txt (instancia 1) + VANITYKEYFOUND2.txt (instancia 2),
+snapshot local no momento do travamento.
+n = 21.753 enderecos.
+
+Qui-quadrado geral da posicao 7 (58 categorias, gl=57, critico95%=75.6):
+56,45 -- ja abaixo do critico neste snapshot (nota honesta: o sinal que
+motivou toda essa investigacao ja esta mais fraco agora do que em leituras
+anteriores desta mesma semana).
+
+Top 3 desvios observados (candidatos a hipotese):
+  '2': observado=428, esperado=375,1, desvio=+52,9 (+14,1%)
+  'Z': observado=415, esperado=375,1, desvio=+39,9 (+10,7%)
+  'B': observado=338, esperado=375,1, desvio=-37,1 (-9,9%)
+
+==============================================================================
+HIPOTESE FORMAL TRAVADA
+==============================================================================
+
+H1: o caractere '2' na posicao 7 (logo apos o prefixo "1PWo3Je") ocorre com
+frequencia MAIOR que 1/58 (2,1739...%) na populacao de enderecos vanity
+gerados por este motor de busca.
+
+H0 (nula): a frequencia do caractere '2' na posicao 7 e exatamente 1/58,
+sem vies.
+
+Teste a aplicar no conjunto de confirmacao: teste de proporcao (z-test) de
+uma cauda, H1: p('2') > 1/58, alfa=0,05.
+
+==============================================================================
+CONJUNTO DE CONFIRMACAO (ainda NAO analisado -- fica para quando quisermos
+fechar o estudo, sem tocar nas instancias antes disso)
+==============================================================================
+
+- TODO o conteudo de VANITYKEYFOUND3.txt, VANITYKEYFOUND4.txt e
+  VANITYKEYFOUND5.txt (instancias que nunca contribuiram pra gerar a
+  hipotese acima).
+- MAIS qualquer crescimento de VANITYKEYFOUND.txt/VANITYKEYFOUND2.txt
+  ALEM das 21.753 linhas combinadas ja contabilizadas acima (tudo que essas
+  duas instancias coletarem a partir de agora conta como confirmacao, nao
+  como geracao de hipotese -- a linha de corte e este snapshot, nao a
+  instancia em si).
+
+Este arquivo nao deve ser editado depois de travado -- se a hipotese mudar,
+criar um novo arquivo com nova data, nunca reescrever este.
