@@ -14,14 +14,14 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <title>MasterKey — a from-scratch CUDA engine for secp256k1 key-space search</title>
-<meta name="description" content="MasterKey is a Bitcoin key-space search engine written from scratch in CUDA: ~4.32 G candidates/s on an RTX 4090, ~2.46 G/s on a 4070 Ti SUPER, measured across four GPUs and three architectures — every mathematical layer validated bit-exact against independent cryptographic oracles.">
+<meta name="description" content="MasterKey is a Bitcoin key-space search engine written from scratch in CUDA: ~5.81 G candidates/s on an RTX 5090, ~2.46 G/s in production on a 4070 Ti SUPER, measured across eleven GPUs and five NVIDIA architectures — every mathematical layer validated bit-exact against independent cryptographic oracles.">
 <link rel="canonical" href="https://masterkeybtc.com/">
 <meta name="author" content="Mr.Luis">
 <meta name="robots" content="index, follow">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://masterkeybtc.com/">
 <meta property="og:title" content="MasterKey — a from-scratch CUDA engine for secp256k1 key-space search">
-<meta property="og:description" content="~4.32 G candidates/s on an RTX 4090, ~2.46 G/s on a 4070 Ti SUPER, ~255 M/s on a Titan Xp — four GPUs, three architectures, all measured. ~320× over the first correct version, and every mathematical layer validated bit-exact before a single optimization was accepted.">
+<meta property="og:description" content="~5.81 G candidates/s on an RTX 5090, ~2.46 G/s in production on a 4070 Ti SUPER, ~142 M/s on a Pascal-era GTX 1080 — eleven GPUs, five NVIDIA architectures, all measured. ~320× over the first correct version, and every mathematical layer validated bit-exact before a single optimization was accepted.">
 <meta name="twitter:card" content="summary">
 <meta name="theme-color" content="#0a0d12">
 <meta name="color-scheme" content="dark">
@@ -311,9 +311,10 @@ footer{padding:52px 0 64px}
     </p>
     <p class="lede">
       Rate depends entirely on the card, so no figure on this page appears without one:
-      <strong>~4.32 G/s</strong> on an RTX 4090, <strong>~2.46 G/s</strong> on an RTX 4070 Ti SUPER,
-      <strong>~600 M/s</strong> on an RTX 2060, <strong>~255 M/s</strong> on a Pascal-era Titan Xp.
-      All four measured on real runs — <strong>never extrapolated</strong>.
+      <strong>~5.81 G/s</strong> on an RTX 5090, <strong>~2.46 G/s</strong> in production on an RTX
+      4070 Ti SUPER, <strong>~590 M/s</strong> on an RTX 2060, <strong>~142 M/s</strong> on a
+      Pascal-era GTX 1080. Eleven cards in total, across five NVIDIA architectures, all measured on
+      real runs — <strong>never extrapolated</strong>.
     </p>
 
     <p class="byline">designed, written and measured by <strong>Mr.Luis</strong></p>
@@ -344,8 +345,8 @@ footer{padding:52px 0 64px}
 
 <div class="metrics">
   <div class="metric">
-    <div class="v">4.32<small> G/s</small></div>
-    <div class="k">peak — RTX 4090</div>
+    <div class="v">5.81<small> G/s</small></div>
+    <div class="k">peak — RTX 5090</div>
   </div>
   <div class="metric">
     <div class="v">2.46<small> G/s</small></div>
@@ -559,14 +560,78 @@ footer{padding:52px 0 64px}
       drawn from <code>[0, rangeEnd)</code> — the start of your range is ignored.
       <br><br>
       Full method, evidence and the list of things that were checked and found <em>correct</em>:
-      <a href="https://github.com/Mrluis-Naka/MasterKeyWeb/blob/main/keyhunt-cuda-audit.md" rel="noopener noreferrer">keyhunt-cuda-audit.md</a>.
+      <a href="https://github.com/Mrluis-Naka/MasterKeyWeb/blob/main/keyhunt-cuda-audit.md" rel="noopener noreferrer">keyhunt-cuda-audit.md</a>
+      (a fuller technical writeup with declared proof levels is at
+      <a href="https://github.com/Mrluis-Naka/MasterKeyWeb/blob/main/AUDIT_KEYHUNT_CUDA_2026-08-05_EN.md" rel="noopener noreferrer">AUDIT_KEYHUNT_CUDA_2026-08-05_EN.md</a>).
       No source file was modified for these tests.
       <br><br>
-      <strong>Scope:</strong> KeyHunt-Cuda is the only tool that was audited, and only the version
-      and build described in that document. The other projects named on this page were read as
-      references and never tested — nothing here is a statement about them, favourable or
-      otherwise. Their absence from this section means they were not examined, not that they were
-      examined and cleared.</p>
+      <strong>Scope:</strong> only the version and build described in that document was audited.</p>
+    </div>
+
+    <div class="callout w">
+      <p class="t">A second audit, same policy: BitCrack</p>
+      <p class="muted small">BitCrack is the most cited GPU tool for the Bitcoin puzzle
+      transaction — ~1,000 GitHub stars, a dedicated bitcointalk.org thread. Popularity is
+      exactly why it got the same treatment as KeyHunt-Cuda.
+      <br><br>
+      <strong>Loading more than 16 target addresses fails immediately, every time</strong> — not
+      slower, a hard refusal (<code>Error: invalid argument</code>) before a single key is
+      scanned. The Bitcoin puzzle transaction has 32 addresses. The cause is a bloom-filter mask
+      copied into GPU memory with the size of a pointer instead of the size of the value —
+      confirmed with a minimal, from-scratch CUDA program that isolates just those three lines.
+      A community member found and correctly fixed the same bug independently in October 2024;
+      the fix has never been merged.
+      <br><br>
+      <strong>Resuming a checkpoint with a non-default <code>--stride</code> can hang forever,
+      silently.</strong> The value is written in hex and read back as decimal, so most non-default
+      strides become zero on resume — the search keeps running at full GPU throughput, counter
+      climbing, while never covering another key. And BitCrack installs no signal handler at
+      all: stopping it any way other than letting it finish always costs progress, and without
+      <code>--continue</code> it costs everything.
+      <br><br>
+      Every result this audit was able to produce — 46+ known keys spanning the full 256-bit
+      range — came back correct. The core cryptography was read line by line against the
+      specifications with no defect found. What's broken is the orchestration around a correct
+      engine, the same shape of problem as KeyHunt-Cuda, not the arithmetic.
+      <br><br>
+      Full method, evidence and the list of things that were checked and found <em>correct</em> —
+      including 46+ known keys spanning the full 256-bit range, all correct:
+      <a href="https://github.com/Mrluis-Naka/MasterKeyWeb/blob/main/AUDIT_BITCRACK_CUDA_2026-08-15_Port_EN.md" rel="noopener noreferrer">AUDIT_BITCRACK_CUDA_2026-08-15_Port_EN.md</a>.
+      No source file was modified for these tests.
+      <br><br>
+      <strong>Scope:</strong> BitCrack's CUDA backend, the version and build described in that
+      document.</p>
+    </div>
+
+    <div class="callout w">
+      <p class="t">A third audit, same policy: CUDACyclone</p>
+      <p class="muted small">CUDACyclone is smaller and newer than the other two, but actively
+      maintained — and its own changelog says a "key skipping" bug was fixed, twice, by two full
+      kernel rewrites. That history is exactly what calls for verification rather than trust.
+      <br><br>
+      <strong>The one case its own test suite never covers reproduces the defect cleanly:
+      <code>privkey=1</code>, the best-known private key that exists, inside a declared range that
+      trivially contains it.</strong> CUDACyclone scans the whole range and reports
+      <code>KEY NOT FOUND (exhaustive)</code>. The cause is a batched modular-inversion product
+      that silently zeroes out whenever a group's center falls close enough to zero or to the
+      curve's order — the same class of defect this project's own engine had and fixed in August
+      2026. Only the group's center survives, because it is checked before the inversion; every
+      other candidate in the group is silently lost.
+      <br><br>
+      In practice this does not touch CUDACyclone's stated use case — Bitcoin puzzle ranges sit far
+      from both boundaries. It touches exactly whoever tries to validate the tool with small known
+      keys or at the extremes of the key space, which is precisely the natural sanity check, and
+      precisely what its own test generator never tries.
+      <br><br>
+      Full method, evidence and the list of things that were checked and found <em>correct</em> —
+      including a clean <code>compute-sanitizer</code> run and correct SIGINT handling:
+      <a href="https://github.com/Mrluis-Naka/MasterKeyWeb/blob/main/AUDIT_CUDACYCLONE_2026-08-15_EN.md" rel="noopener noreferrer">AUDIT_CUDACYCLONE_2026-08-15_EN.md</a>.
+      No source file was modified for these tests.
+      <br><br>
+      <strong>Scope:</strong> the version and build described in that document. Five tools have
+      now been put through this same rubric — the comparative summary, and every individual audit
+      including this project's own code, are at
+      <a href="https://github.com/Mrluis-Naka/MasterKeyWeb/blob/main/COMPARATIVE_AUDIT_FIVE_ENGINES_EN.md" rel="noopener noreferrer">COMPARATIVE_AUDIT_FIVE_ENGINES_EN.md</a>.</p>
     </div>
 
     <div class="callout">
@@ -583,7 +648,15 @@ footer{padding:52px 0 64px}
       engine — secp256k1 arithmetic, Base58Check and RIPEMD-160 are implemented from the
       specifications, so a passing run is evidence about the data rather than about a shared
       library. An address list alone would prove nothing; the key is the evidence, because deriving
-      the address from it only works one way.</p>
+      the address from it only works one way.
+      <br><br>
+      The rest of the statistical study's underlying material is published in the same repository:
+      the frozen per-instance address sets and accumulated corpus, the range-generalisation
+      censuses, the fixed-bit-line data, the scalar-multiplication trace dataset, the pre-registered
+      hypothesis with its OpenTimestamps proof, and the analysis scripts that reproduce several of
+      the study's reported statistics independently against <code>scipy</code>. Full file-by-file
+      map:
+      <a href="https://github.com/Mrluis-Naka/MasterKeyWeb/blob/main/DATA_MANIFEST.md" rel="noopener noreferrer">DATA_MANIFEST.md</a>.</p>
     </div>
   </div>
 </section>
@@ -712,6 +785,113 @@ footer{padding:52px 0 64px}
       </p>
     </div>
 
+    <h3>Every card benchmarked — the full comparison protocol</h3>
+    <p class="muted">
+      A later, broader campaign ran the same fixed command against the same narrow range on every
+      card available — the config built specifically for apples-to-apples comparison, not the
+      production spread above. Eleven cards, five NVIDIA architectures, GTX 1080 (Pascal) through
+      RTX 5090 (Blackwell).
+    </p>
+    <div class="tw">
+      <table class="wide">
+        <thead>
+          <tr>
+            <th>GPU</th><th>Architecture</th><th class="num">Throughput</th>
+            <th class="num">TDP</th><th class="num">Mk/s per W</th><th style="width:16%">relative</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>RTX 5090</td><td class="tiny">Blackwell</td>
+            <td class="num" style="color:var(--accent)">5,814</td>
+            <td class="num">~520 W</td><td class="num">~11.2</td>
+            <td><div class="bar"><i style="width:100%"></i></div></td>
+          </tr>
+          <tr>
+            <td>RTX 4090</td><td class="tiny">Ada Lovelace</td>
+            <td class="num" style="color:var(--accent)">4,928</td>
+            <td class="num">450 W</td><td class="num">10.95</td>
+            <td><div class="bar"><i style="width:84.8%"></i></div></td>
+          </tr>
+          <tr>
+            <td>RTX 5080</td><td class="tiny">Blackwell</td>
+            <td class="num" style="color:var(--accent)">3,336</td>
+            <td class="num">360 W</td><td class="num">9.27</td>
+            <td><div class="bar"><i style="width:57.4%"></i></div></td>
+          </tr>
+          <tr>
+            <td>RTX 4070 Ti SUPER</td><td class="tiny">Ada Lovelace</td>
+            <td class="num" style="color:var(--accent)">2,526</td>
+            <td class="num">285 W</td><td class="num">8.86</td>
+            <td><div class="bar"><i style="width:43.5%"></i></div></td>
+          </tr>
+          <tr>
+            <td>RTX 5060 Ti</td><td class="tiny">Blackwell</td>
+            <td class="num" style="color:var(--accent)">1,327</td>
+            <td class="num">180 W</td><td class="num">8.12</td>
+            <td><div class="bar"><i style="width:22.8%"></i></div></td>
+          </tr>
+          <tr>
+            <td>RTX 5060</td><td class="tiny">Blackwell</td>
+            <td class="num" style="color:var(--accent)">1,109</td>
+            <td class="num">145 W</td><td class="num">7.65</td>
+            <td><div class="bar"><i style="width:19.1%"></i></div></td>
+          </tr>
+          <tr>
+            <td>RTX 4060</td><td class="tiny">Ada Lovelace</td>
+            <td class="num" style="color:var(--accent)">900</td>
+            <td class="num">115 W</td><td class="num">7.83</td>
+            <td><div class="bar"><i style="width:15.5%"></i></div></td>
+          </tr>
+          <tr>
+            <td>RTX 3060</td><td class="tiny">Ampere</td>
+            <td class="num" style="color:var(--accent)">737</td>
+            <td class="num">170 W</td><td class="num">4.34</td>
+            <td><div class="bar"><i style="width:12.7%"></i></div></td>
+          </tr>
+          <tr>
+            <td>RTX 2060</td><td class="tiny">Turing</td>
+            <td class="num" style="color:var(--accent)">590</td>
+            <td class="num">—</td><td class="num">—</td>
+            <td><div class="bar"><i style="width:10.1%"></i></div></td>
+          </tr>
+          <tr>
+            <td>RTX 3050</td><td class="tiny">Ampere</td>
+            <td class="num" style="color:var(--accent)">451</td>
+            <td class="num">100 W</td><td class="num">4.51</td>
+            <td><div class="bar"><i style="width:7.8%"></i></div></td>
+          </tr>
+          <tr>
+            <td>GTX 1080</td><td class="tiny">Pascal</td>
+            <td class="num" style="color:var(--accent)">142</td>
+            <td class="num">200 W</td><td class="num">0.71</td>
+            <td><div class="bar"><i style="width:2.4%"></i></div></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="tiny" style="margin-top:14px">
+      Throughput in Mkeys/s, fixed narrow-range command, identical across every row. TDP is the
+      power draw actually observed on the card (provider-imposed caps in several cases — RTX 5060
+      Ti, RTX 3050 — not the card's rated maximum). RTX 2060 was not power-logged, so no per-watt
+      figure is given for it. These numbers are not directly comparable to the production-spread
+      table above — different command, different range — which is why they are reported as a
+      separate table rather than merged into it.
+    </p>
+
+    <div class="callout">
+      <p class="t">Two most recent architectures cluster; the drop-off is real</p>
+      <p class="muted small">
+        Ada Lovelace and Blackwell sit in the same efficiency band — 7.6 to 11.2 Mk/s per watt,
+        five cards across two architectures and three tiers. Ampere drops to less than half of
+        that, 4.3–4.5, regardless of which specific card. Pascal collapses further still: the GTX
+        1080 delivers <strong>0.71 Mk/s/W — 6.1× less efficient than the Ampere RTX 3060</strong>,
+        and it is not power-limited getting there (it pulled 100 W of a 200 W ceiling, clock
+        pinned, no throttle flag active). The architecture itself is the reason, not the card's
+        power budget.
+      </p>
+    </div>
+
     <div class="callout w">
       <p class="t">Negative results, reported with the same rigor</p>
       <p class="muted small">
@@ -820,18 +1000,24 @@ footer{padding:52px 0 64px}
       <div class="card">
         <h4>Engineering record</h4>
         <p>A full account of the architecture, the validation methodology, and every optimization —
-        including the refuted ones — written to be replicable and auditable.</p>
+        including the refuted ones — written to be replicable and auditable.
+        <a href="https://github.com/Mrluis-Naka/MasterKeyWeb/blob/main/ENGINEERING_MANUSCRIPT_EN.md" rel="noopener noreferrer">Read it</a>.</p>
       </div>
       <div class="card">
         <h4>Statistical study</h4>
         <p>A separate manuscript on conditional uniformity under prefix filtering, with a
-        pre-registered hypothesis and timestamped commitment before collection.</p>
+        pre-registered hypothesis and timestamped commitment before collection.
+        <a href="https://github.com/Mrluis-Naka/MasterKeyWeb/blob/main/PRE_REGISTERED_HYPOTHESIS.txt" rel="noopener noreferrer">Pre-registration</a>
+        and its
+        <a href="https://github.com/Mrluis-Naka/MasterKeyWeb/blob/main/PRE_REGISTERED_HYPOTHESIS.txt.ots" rel="noopener noreferrer">OpenTimestamps proof</a>.</p>
       </div>
       <div class="card">
         <h4>Collected corpus</h4>
         <p>249,476 addresses published with the key of each — about 3.8 quadrillion candidates
         tested to produce them, one match every ~15.3 billion keys. Every match independently
-        re-verified outside the engine that produced it.</p>
+        re-verified outside the engine that produced it. The full corpus, censuses and per-instance
+        sets are in the
+        <a href="https://github.com/Mrluis-Naka/MasterKeyWeb/blob/main/DATA_MANIFEST.md" rel="noopener noreferrer">data manifest</a>.</p>
       </div>
     </div>
 
@@ -862,7 +1048,7 @@ footer{padding:52px 0 64px}
     <ul class="kv">
       <li><span class="k">scope</span><span class="d">The ranges and prefixes used in collection have no known relation to funded addresses. The stated and only purpose of development is to serve as a research instrument.</span></li>
       <li><span class="k">infrastructure</span><span class="d">Every cloud instance used was security-audited before long runs: filesystem permissions, authorized SSH keys, and confirmed absence of third-party access.</span></li>
-      <li><span class="k">source code</span><span class="d">Not publicly released in this version. Whether the engineering detail should be published in full, summarized without source, or provided on request under triage is treated as an explicit open decision — not an omission.</span></li>
+      <li><span class="k">source code</span><span class="d">Not published — a final decision, declared explicitly rather than omitted. The engineering detail itself is published in full (architecture, validation, the complete optimization trajectory); the source code alone stays withheld.</span></li>
       <li><span class="k">collected data</span><span class="d">Published in full: 249,476 addresses with their private keys, plus an independent verifier, at <a href="https://github.com/Mrluis-Naka/MasterKeyWeb" rel="noopener noreferrer">github.com/Mrluis-Naka/MasterKeyWeb</a>. Releasing the data costs nothing in dual-use terms — the keys lie in a public puzzle interval and hold no value — while making every claim on this page checkable by a third party.</span></li>
       <li><span class="k">scale, honestly</span><span class="d">A brute-force search of a full 256-bit key space is not made feasible by any factor described here. What changes with a ~320× speedup is the practical reach of statistical sampling inside deliberately bounded ranges — nothing more.</span></li>
     </ul>
@@ -901,9 +1087,9 @@ footer{padding:52px 0 64px}
       Not affiliated with, endorsed by, or derived from Keyhunt, BitCrack, KeyHunt-Cuda or
       CUDACyclone. Those projects were read as references during development and are credited as
       such throughout this page. Every performance figure here comes from a real run on the named
-      GPU. Of those projects, only KeyHunt-Cuda was audited, and only in the version and build
-      documented in the audit — the others were never tested, and this page neither criticises nor
-      endorses them.
+      GPU. Of those projects, KeyHunt-Cuda and BitCrack were audited, each only in the version and
+      build documented in its own audit — the others were never tested, and this page neither
+      criticises nor endorses any of them.
     </p>
   </div>
 </footer>
@@ -919,7 +1105,7 @@ footer{padding:52px 0 64px}
   "creator":{"@type":"Person","name":"Mr.Luis"},
   "url":"https://masterkeybtc.com/",
   "inLanguage":"en",
-  "description":"A from-scratch CUDA engine for secp256k1 key-space search, validated bit-exact against independent cryptographic oracles. Measured on four GPUs across three NVIDIA architectures: ~4.32 G candidates/s on an RTX 4090, ~2.46 G/s on an RTX 4070 Ti SUPER, ~600 M/s on an RTX 2060, ~255 M/s on a Titan Xp.",
+  "description":"A from-scratch CUDA engine for secp256k1 key-space search, validated bit-exact against independent cryptographic oracles. Measured on eleven GPUs across five NVIDIA architectures: ~5.81 G candidates/s on an RTX 5090, ~2.46 G/s in production on an RTX 4070 Ti SUPER, ~590 M/s on an RTX 2060, ~142 M/s on a Pascal-era GTX 1080.",
   "featureList":[
     "address / rmd160 / xpoint / vanity search modes",
     "batched modular inversion (Montgomery trick) with safegcd binary GCD",
