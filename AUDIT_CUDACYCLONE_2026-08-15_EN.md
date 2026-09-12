@@ -2,8 +2,8 @@
 
 **Date**: 2026-08-15
 **Object**: CUDACyclone, code as distributed at `github.com/Dookoo2/CUDACyclone`, branch `main`,
-commit `61fd323` (2025-09-22, ~1 month of history — a small but active project, unlike BitCrack and
-KeyHunt-Cuda, both abandoned).
+commit `61fd323` (2025-09-22) — a small but active project, unlike BitCrack and KeyHunt-Cuda, both
+abandoned.
 **Motivation**: same methodology as the BitCrack and KeyHunt-Cuda audits, applied to one more
 project cited on masterkeybtc.com as a reference.
 
